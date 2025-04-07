@@ -1,32 +1,27 @@
 {
-  "name": "tauri-android-app",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
+  "name": "api-rooms",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-fs": "^2.2.1",
-    "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-dialog": "~2",
-    
-    "vue": "^3.5.13"
+    "@supabase/supabase-js": "^2.39.7",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.13.2",
+    "multer": "^1.4.5-lts.2"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
-    "@vitejs/plugin-vue": "^5.2.1",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.3",
-    "vue-tsc": "^2.1.10"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
+    "nodemon": "^3.1.0"
   }
 }
