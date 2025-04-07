@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">tauri-fs</string>
+    <string name="main_activity_title">tauri-fs</string>
+</resources>
