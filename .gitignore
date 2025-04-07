@@ -38,3 +38,4 @@ temp/
 # Archivos de caché
 .npm
 .eslintcache 
+.vercel
