@@ -2,9 +2,22 @@ const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 
+// Configuración de Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Error: Las credenciales de Supabase no están configuradas correctamente');
+  throw new Error('Configuración de Supabase incompleta');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});
 
 // Middleware para verificar autenticación
 const authenticateUser = async (req, res, next) => {
@@ -124,12 +137,31 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
+    if (!email || !password) {
+      return res.status(400).json({ 
+        error: 'Email y contraseña son requeridos' 
+      });
+    }
+
+    console.log('Intentando login con:', { email });
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error de Supabase:', error);
+      return res.status(400).json({ 
+        error: error.message 
+      });
+    }
+
+    if (!data || !data.user) {
+      return res.status(400).json({ 
+        error: 'No se pudo obtener la información del usuario' 
+      });
+    }
 
     // Crear o obtener el perfil del usuario
     const userData = await createUserProfile(data.user.id, email);
@@ -141,7 +173,10 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Error en login:', error);
-    res.status(400).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'Error interno del servidor',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
