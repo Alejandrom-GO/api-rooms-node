@@ -6,11 +6,15 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
+// Verificación de variables de entorno
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Error: Las credenciales de Supabase no están configuradas correctamente');
-  throw new Error('Configuración de Supabase incompleta');
+  console.error('Error: Variables de entorno de Supabase no configuradas en auth.js');
+  console.error('SUPABASE_URL:', supabaseUrl ? 'Configurada' : 'No configurada');
+  console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'Configurada' : 'No configurada');
+  throw new Error('Configuración de Supabase incompleta en auth.js');
 }
 
+// Inicialización de Supabase con opciones específicas
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: false,
@@ -145,32 +149,50 @@ router.post('/login', async (req, res) => {
 
     console.log('Intentando login con:', { email });
     
+    // Verificar conexión con Supabase antes de intentar el login
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      console.error('Error al verificar sesión:', sessionError);
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      console.error('Error de Supabase:', error);
+      console.error('Error de Supabase en login:', error);
       return res.status(400).json({ 
-        error: error.message 
+        error: error.message,
+        code: error.code
       });
     }
 
     if (!data || !data.user) {
+      console.error('No se pudo obtener la información del usuario después del login');
       return res.status(400).json({ 
         error: 'No se pudo obtener la información del usuario' 
       });
     }
 
-    // Crear o obtener el perfil del usuario
-    const userData = await createUserProfile(data.user.id, email);
-
-    res.status(200).json({
-      message: 'Login exitoso',
-      session: data.session,
-      user: userData
-    });
+    try {
+      // Crear o obtener el perfil del usuario
+      const userData = await createUserProfile(data.user.id, email);
+      
+      res.status(200).json({
+        message: 'Login exitoso',
+        session: data.session,
+        user: userData
+      });
+    } catch (profileError) {
+      console.error('Error al crear/obtener perfil:', profileError);
+      // Aún así devolvemos la sesión aunque falle la creación del perfil
+      res.status(200).json({
+        message: 'Login exitoso, pero hubo un error al obtener el perfil',
+        session: data.session,
+        user: data.user
+      });
+    }
   } catch (error) {
     console.error('Error en login:', error);
     res.status(500).json({ 

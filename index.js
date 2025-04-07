@@ -13,12 +13,36 @@ app.use(express.json());
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
+// Verificación de variables de entorno
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Error: Las credenciales de Supabase no están configuradas correctamente');
-  process.exit(1);
+  console.error('Error: Variables de entorno de Supabase no configuradas');
+  console.error('SUPABASE_URL:', supabaseUrl ? 'Configurada' : 'No configurada');
+  console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'Configurada' : 'No configurada');
+  throw new Error('Configuración de Supabase incompleta');
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Inicialización de Supabase con opciones específicas
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});
+
+// Middleware para verificar la conexión con Supabase
+app.use(async (req, res, next) => {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('Error de conexión con Supabase:', error);
+    }
+    next();
+  } catch (error) {
+    console.error('Error en middleware de Supabase:', error);
+    next();
+  }
+});
 
 // Verificar conexión con Supabase
 app.get('/api/health', async (req, res) => {
