@@ -83,6 +83,7 @@ const favoriteRoutes = require('./routes/favorites');
 const collectionRoutes = require('./routes/collections');
 const bookingRoutes = require('./routes/bookings');
 const settingsRoutes = require('./routes/settings');
+const paymentRoutes = require('./routes/payments');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -91,6 +92,7 @@ app.use('/api/favorites', favoriteRoutes);
 app.use('/api/collections', collectionRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {
