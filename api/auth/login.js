@@ -1,24 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
-
-// Configuración de Supabase
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-// Verificación de variables de entorno
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Error: Variables de entorno de Supabase no configuradas en login.js');
-  console.error('SUPABASE_URL:', supabaseUrl ? 'Configurada' : 'No configurada');
-  console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'Configurada' : 'No configurada');
-}
-
-// Inicialización de Supabase con opciones específicas
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false
-  }
-});
+const { supabase } = require('../utils/supabase');
 
 // Función para crear el perfil del usuario
 async function createUserProfile(userId, email) {
@@ -114,12 +94,6 @@ module.exports = async (req, res) => {
 
     console.log('Intentando login con:', { email });
     
-    // Verificar conexión con Supabase antes de intentar el login
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-      console.error('Error al verificar sesión:', sessionError);
-    }
-
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -134,7 +108,6 @@ module.exports = async (req, res) => {
     }
 
     if (!data || !data.user) {
-      console.error('No se pudo obtener la información del usuario después del login');
       return res.status(400).json({ 
         error: 'No se pudo obtener la información del usuario' 
       });

@@ -1,8 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
-
-// Configuración de Supabase
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const { supabase, supabaseUrl, supabaseKey } = require('./utils/supabase');
 
 // Verificación de variables de entorno
 if (!supabaseUrl || !supabaseKey) {
@@ -10,15 +6,6 @@ if (!supabaseUrl || !supabaseKey) {
   console.error('SUPABASE_URL:', supabaseUrl ? 'Configurada' : 'No configurada');
   console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'Configurada' : 'No configurada');
 }
-
-// Inicialización de Supabase con opciones específicas
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false
-  }
-});
 
 // Manejador de la función serverless
 module.exports = async (req, res) => {
@@ -43,45 +30,21 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Intentar obtener la información del usuario actual
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error) {
-      // Si hay error de autenticación, pero el servidor responde, significa que la conexión está bien
-      res.json({ 
-        status: 'ok', 
-        message: 'Conexión con Supabase establecida',
-        auth: 'No autenticado',
-        env: {
-          supabaseUrl: supabaseUrl ? 'Configurada' : 'No configurada',
-          supabaseKey: supabaseKey ? 'Configurada' : 'No configurada',
-          nodeEnv: process.env.NODE_ENV || 'No configurado'
-        }
-      });
-    } else {
-      res.json({ 
-        status: 'ok', 
-        message: 'Conexión con Supabase establecida',
-        auth: 'Autenticado',
-        user: user,
-        env: {
-          supabaseUrl: supabaseUrl ? 'Configurada' : 'No configurada',
-          supabaseKey: supabaseKey ? 'Configurada' : 'No configurada',
-          nodeEnv: process.env.NODE_ENV || 'No configurado'
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error de conexión con Supabase:', error);
-    res.status(500).json({ 
-      status: 'error', 
-      message: 'Error de conexión con Supabase',
-      error: error.message,
+    res.json({ 
+      status: 'ok', 
+      message: 'API funcionando correctamente',
       env: {
         supabaseUrl: supabaseUrl ? 'Configurada' : 'No configurada',
         supabaseKey: supabaseKey ? 'Configurada' : 'No configurada',
         nodeEnv: process.env.NODE_ENV || 'No configurado'
       }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Error interno del servidor',
+      error: error.message
     });
   }
 }; 
