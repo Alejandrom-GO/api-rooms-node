@@ -37,51 +37,6 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
-// Middleware para verificar la conexión con Supabase
-app.use(async (req, res, next) => {
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) {
-      console.error('Error de conexión con Supabase:', error);
-    }
-    next();
-  } catch (error) {
-    console.error('Error en middleware de Supabase:', error);
-    next();
-  }
-});
-
-// Verificar conexión con Supabase
-app.get('/api/health', async (req, res) => {
-  try {
-    // Intentar obtener la información del usuario actual
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error) {
-      // Si hay error de autenticación, pero el servidor responde, significa que la conexión está bien
-      res.json({ 
-        status: 'ok', 
-        message: 'Conexión con Supabase establecida',
-        auth: 'No autenticado'
-      });
-    } else {
-      res.json({ 
-        status: 'ok', 
-        message: 'Conexión con Supabase establecida',
-        auth: 'Autenticado',
-        user: user
-      });
-    }
-  } catch (error) {
-    console.error('Error de conexión con Supabase:', error);
-    res.status(500).json({ 
-      status: 'error', 
-      message: 'Error de conexión con Supabase',
-      error: error.message 
-    });
-  }
-});
-
 // Rutas
 const userRoutes = require('./routes/users');
 const roomRoutes = require('./routes/rooms');
@@ -98,6 +53,15 @@ app.use('/api/collections', collectionRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/payments', paymentRoutes);
+
+// Ruta de health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV
+  });
+});
 
 // Manejo de errores global
 app.use((err, req, res, next) => {
