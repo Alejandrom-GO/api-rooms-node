@@ -26,6 +26,15 @@ router.post('/create-checkout-session', async (req, res) => {
             });
         }
 
+        // URLs por defecto si no se proporcionan
+        const defaultSuccessUrl = successUrl || 
+            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/success` : 
+            `${req.protocol}://${req.get('host')}/success`);
+            
+        const defaultCancelUrl = cancelUrl || 
+            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/cancel` : 
+            `${req.protocol}://${req.get('host')}/cancel`);
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [
@@ -43,8 +52,8 @@ router.post('/create-checkout-session', async (req, res) => {
                 },
             ],
             mode: 'payment',
-            success_url: successUrl || `${process.env.FRONTEND_URL}/success`,
-            cancel_url: cancelUrl || `${process.env.FRONTEND_URL}/cancel`,
+            success_url: defaultSuccessUrl,
+            cancel_url: defaultCancelUrl,
             locale: 'es',
             customer_email: req.body.email,
             metadata: {
