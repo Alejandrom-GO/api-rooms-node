@@ -1,25 +1,32 @@
+// Cargar variables de entorno primero
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+
+// Verificación de variables de entorno
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Error: Variables de entorno de Supabase no configuradas');
+  console.error('SUPABASE_URL:', supabaseUrl ? 'Configurada' : 'No configurada');
+  console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'Configurada' : 'No configurada');
+  process.exit(1); // Terminar el proceso si las variables no están configuradas
+}
 
 const app = express();
+
+// Importar rutas
+const authRoutes = require('./routes/auth');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Configuración de Supabase
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-// Verificación de variables de entorno
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Error: Variables de entorno de Supabase no configuradas');
-  console.error('SUPABASE_URL:', supabaseUrl ? 'Configurada' : 'No configurada');
-  console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'Configurada' : 'No configurada');
-  throw new Error('Configuración de Supabase incompleta');
-}
+// Montar rutas
+app.use('/api/auth', authRoutes);
 
 // Inicialización de Supabase con opciones específicas
 const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -76,7 +83,6 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Rutas
-const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const roomRoutes = require('./routes/rooms');
 const favoriteRoutes = require('./routes/favorites');
@@ -85,7 +91,6 @@ const bookingRoutes = require('./routes/bookings');
 const settingsRoutes = require('./routes/settings');
 const paymentRoutes = require('./routes/payments');
 
-app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/favorites', favoriteRoutes);
@@ -106,7 +111,7 @@ app.use((err, req, res, next) => {
 
 // Para desarrollo local
 if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT || 4000;
   app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
     console.log('URL de Supabase:', supabaseUrl);
