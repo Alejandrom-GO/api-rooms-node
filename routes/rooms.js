@@ -136,7 +136,6 @@ router.get('/', authenticateUser, async (req, res) => {
   }
 });
 
-// GET /api/rooms/featured
 router.get('/featured', authenticateUser, async (req, res) => {
   try {
     const { data: rooms, error } = await req.supabase
@@ -153,8 +152,8 @@ router.get('/featured', authenticateUser, async (req, res) => {
     res.json({
       data: rooms.map(room => ({
         ...room,
-        images: room.images.map(img => img.url),
-        amenities: room.amenities.map(a => a.amenity),
+        images: room.room_images ? room.room_images.map(img => img.url) : [],
+        amenities: room.amenities ? room.amenities.map(a => a.amenity) : [],
         isNew: (new Date() - new Date(room.created_at)) < 7 * 24 * 60 * 60 * 1000
       }))
     });
@@ -257,15 +256,16 @@ router.get('/:id/images', authenticateUser, async (req, res) => {
 });
 
 // POST /api/rooms/search
-router.post('/search', async (req, res) => {
+router.post('/search', authenticateUser, async (req, res) => {
   try {
     const { type, maxPrice } = req.body;
+    console.log('Búsqueda con parámetros:', { type, maxPrice });
 
     let query = req.supabase
       .from('rooms')
       .select(`
         *,
-        room_images(url)
+        room_images(url, is_primary)
       `);
 
     if (type) {
@@ -277,17 +277,51 @@ router.post('/search', async (req, res) => {
 
     const { data: rooms, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error en la consulta:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Error al realizar la búsqueda',
+        details: error.message
+      });
+    }
 
-    res.json({
-      data: rooms.map(room => ({
-        ...room,
-        images: room.room_images ? room.room_images.map(img => img.url) : []
-      }))
+    if (!rooms || rooms.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: 'No se encontraron habitaciones con los criterios especificados'
+      });
+    }
+
+    const formattedRooms = rooms.map(room => ({
+      id: room.id,
+      name: room.name,
+      description: room.description,
+      price: room.price,
+      type: room.type,
+      location: room.location,
+      rating: room.rating,
+      images: room.room_images ? room.room_images.map(img => ({
+        url: img.url,
+        isPrimary: img.is_primary
+      })) : [],
+      created_at: room.created_at,
+      updated_at: room.updated_at
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedRooms,
+      count: formattedRooms.length
     });
   } catch (error) {
-    console.error('Error al buscar habitaciones:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error inesperado al buscar habitaciones:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error inesperado al buscar habitaciones',
+      details: error.message
+    });
   }
 });
 
