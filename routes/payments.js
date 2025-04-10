@@ -27,11 +27,16 @@ router.post('/create-checkout-session', async (req, res) => {
         }
 
         // URLs por defecto si no se proporcionan
-        const defaultSuccessUrl = `${process.env.FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}`;
+        const defaultSuccessUrl = process.env.APP_TYPE === 'tauri' 
+            ? `api-rooms://payment-handler/{CHECKOUT_SESSION_ID}`
+            : `${process.env.FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}`;
             
         const defaultCancelUrl = cancelUrl || 
-            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/confirm-booking-view/${roomDetails.roomId}` : 
-            `${req.protocol}://${req.get('host')}/confirm-booking-view/${roomDetails.roomId}`);
+            (process.env.APP_TYPE === 'tauri'
+                ? `api-rooms://confirm-booking-view/${roomDetails.roomId}`
+                : process.env.FRONTEND_URL 
+                    ? `${process.env.FRONTEND_URL}/confirm-booking-view/${roomDetails.roomId}`
+                    : `${req.protocol}://${req.get('host')}/confirm-booking-view/${roomDetails.roomId}`);
 
         console.log('URL de éxito configurada:', defaultSuccessUrl);
 
