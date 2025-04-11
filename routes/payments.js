@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
+// URLs por defecto
+const DEFAULT_FRONTEND_URL = 'https://app-rooms-git-main-alejandromgos-projects.vercel.app';
+const DEFAULT_API_URL = 'https://api-rooms-node-git-main-alejandromgos-projects.vercel.app/api';
+
 // Crear una sesión de Checkout
 router.post('/create-checkout-session', async (req, res) => {
     try {
@@ -28,12 +32,12 @@ router.post('/create-checkout-session', async (req, res) => {
 
         // URLs por defecto si no se proporcionan
         const defaultSuccessUrl = successUrl || 
-            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/success` : 
-            `${req.protocol}://${req.get('host')}/success`);
+            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}` : 
+            `${DEFAULT_FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}`);
             
         const defaultCancelUrl = cancelUrl || 
-            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/cancel` : 
-            `${req.protocol}://${req.get('host')}/cancel`);
+            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/payment-handler/cancel` : 
+            `${DEFAULT_FRONTEND_URL}/payment-handler/cancel`);
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
@@ -69,6 +73,25 @@ router.post('/create-checkout-session', async (req, res) => {
         console.error('Error al crear la sesión de checkout:', error);
         res.status(500).json({ 
             error: 'Error al procesar el pago',
+            details: error.message
+        });
+    }
+});
+
+// Ruta para verificar el estado del pago
+router.get('/check-session/:sessionId', async (req, res) => {
+    try {
+        const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+        res.json({
+            status: session.payment_status,
+            customer: session.customer,
+            amount: session.amount_total,
+            metadata: session.metadata
+        });
+    } catch (error) {
+        console.error('Error al verificar la sesión:', error);
+        res.status(500).json({ 
+            error: 'Error al verificar el estado del pago',
             details: error.message
         });
     }
