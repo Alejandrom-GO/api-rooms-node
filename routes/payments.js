@@ -3,8 +3,8 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // URLs por defecto
-const DEFAULT_FRONTEND_URL = 'https://app-rooms-git-main-alejandromgos-projects.vercel.app';
-const DEFAULT_API_URL = 'https://api-rooms-node-git-main-alejandromgos-projects.vercel.app/api';
+const DEFAULT_FRONTEND_URL = 'https://app-rooms-git-main-alejandromgos-projects.vercel.app/';  // URL de producción sin git-main
+const DEFAULT_API_URL = 'https://api-rooms-node.vercel.app/api';   // URL de producción sin git-main
 
 // Crear una sesión de Checkout
 router.post('/create-checkout-session', async (req, res) => {
@@ -43,7 +43,11 @@ router.post('/create-checkout-session', async (req, res) => {
               (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/payment-handler/cancel` : 
               `${DEFAULT_FRONTEND_URL}/payment-handler/cancel`);
 
-        console.log('URL de éxito configurada:', defaultSuccessUrl);
+        // Asegurarnos de que la URL de éxito no incluya parámetros de autenticación de Vercel
+        const cleanSuccessUrl = defaultSuccessUrl.split('?')[0];
+        const cleanCancelUrl = defaultCancelUrl.split('?')[0];
+
+        console.log('URL de éxito configurada:', cleanSuccessUrl);
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
@@ -62,8 +66,8 @@ router.post('/create-checkout-session', async (req, res) => {
                 },
             ],
             mode: 'payment',
-            success_url: defaultSuccessUrl,
-            cancel_url: defaultCancelUrl,
+            success_url: cleanSuccessUrl,
+            cancel_url: cleanCancelUrl,
             locale: 'es',
             customer_email: req.body.email,
             metadata: {
@@ -71,11 +75,14 @@ router.post('/create-checkout-session', async (req, res) => {
                 check_in: roomDetails.checkIn,
                 check_out: roomDetails.checkOut,
                 guests: roomDetails.guests,
-                success_url: defaultSuccessUrl
+                success_url: cleanSuccessUrl
             }
         });
 
-        console.log('Sesión creada con URL de éxito:', session.success_url);
+        console.log('URL de éxito configurada:', cleanSuccessUrl);
+        console.log('URL de éxito en la sesión:', session.success_url);
+        console.log('URL de cancelación configurada:', cleanCancelUrl);
+        console.log('URL de cancelación en la sesión:', session.cancel_url);
 
         res.json({ url: session.url });
     } catch (error) {
