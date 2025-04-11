@@ -29,7 +29,7 @@ router.post('/create-checkout-session', async (req, res) => {
         // URLs por defecto si no se proporcionan
         const defaultSuccessUrl = process.env.APP_TYPE === 'tauri' 
             ? `api-rooms://payment-handler/{CHECKOUT_SESSION_ID}`
-            : `${process.env.FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}`;
+            : `${process.env.FRONTEND_URL || 'https://app-rooms-alejandromgos-projects.vercel.app'}/payment-handler/{CHECKOUT_SESSION_ID}`;
             
         const defaultCancelUrl = cancelUrl || 
             (process.env.APP_TYPE === 'tauri'
