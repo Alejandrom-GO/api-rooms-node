@@ -31,13 +31,19 @@ router.post('/create-checkout-session', async (req, res) => {
         }
 
         // URLs por defecto si no se proporcionan
-        const defaultSuccessUrl = successUrl || 
-            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}` : 
-            `${DEFAULT_FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}`);
+        const defaultSuccessUrl = process.env.APP_TYPE === 'tauri' 
+            ? `api-rooms://payment-handler/{CHECKOUT_SESSION_ID}`
+            : successUrl || 
+              (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}` : 
+              `${DEFAULT_FRONTEND_URL}/payment-handler/{CHECKOUT_SESSION_ID}`);
             
-        const defaultCancelUrl = cancelUrl || 
-            (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/payment-handler/cancel` : 
-            `${DEFAULT_FRONTEND_URL}/payment-handler/cancel`);
+        const defaultCancelUrl = process.env.APP_TYPE === 'tauri'
+            ? `api-rooms://confirm-booking-view/${roomDetails.roomId}`
+            : cancelUrl || 
+              (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/payment-handler/cancel` : 
+              `${DEFAULT_FRONTEND_URL}/payment-handler/cancel`);
+
+        console.log('URL de éxito configurada:', defaultSuccessUrl);
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
@@ -64,9 +70,12 @@ router.post('/create-checkout-session', async (req, res) => {
                 room_id: roomDetails.roomId,
                 check_in: roomDetails.checkIn,
                 check_out: roomDetails.checkOut,
-                guests: roomDetails.guests
+                guests: roomDetails.guests,
+                success_url: defaultSuccessUrl
             }
         });
+
+        console.log('Sesión creada con URL de éxito:', session.success_url);
 
         res.json({ url: session.url });
     } catch (error) {
@@ -127,6 +136,44 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     }
 
     res.json({ received: true });
+});
+
+// Endpoint para verificar el estado de un pago
+router.get('/verify-payment/:sessionId', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        
+        if (!sessionId) {
+            return res.status(400).json({ 
+                error: 'Se requiere el ID de la sesión de pago',
+                success: false
+            });
+        }
+
+        // Obtener la sesión de Stripe
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        
+        // Verificar el estado del pago
+        const paymentStatus = {
+            id: session.id,
+            status: session.payment_status,
+            amount: session.amount_total / 100, // Convertir de centavos a la unidad monetaria
+            currency: session.currency,
+            customer: session.customer,
+            metadata: session.metadata,
+            created: new Date(session.created * 1000).toISOString(),
+            success: session.payment_status === 'paid'
+        };
+
+        res.json(paymentStatus);
+    } catch (error) {
+        console.error('Error al verificar el pago:', error);
+        res.status(500).json({ 
+            error: 'Error al verificar el estado del pago',
+            details: error.message,
+            success: false
+        });
+    }
 });
 
 module.exports = router; 

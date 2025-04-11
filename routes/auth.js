@@ -26,13 +26,27 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 // Middleware para verificar autenticación
 const authenticateUser = async (req, res, next) => {
   try {
+    console.log('Verificando autenticación...');
     const authHeader = req.headers.authorization;
+    
     if (!authHeader) {
-      return res.status(401).json({ error: 'No se proporcionó token de autenticación' });
+      console.log('No se encontró header de autorización');
+      return res.status(401).json({ 
+        success: false,
+        error: 'No se proporcionó token de autenticación' 
+      });
     }
 
     const token = authHeader.split(' ')[1];
+    if (!token) {
+      console.log('No se encontró token en el header');
+      return res.status(401).json({ 
+        success: false,
+        error: 'Formato de token inválido' 
+      });
+    }
     
+    console.log('Creando cliente Supabase con token...');
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
@@ -46,18 +60,37 @@ const authenticateUser = async (req, res, next) => {
       }
     });
 
+    console.log('Verificando usuario con Supabase...');
     const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (error || !user) {
-      return res.status(401).json({ error: 'Token inválido o expirado' });
+    if (error) {
+      console.error('Error al verificar usuario:', error);
+      return res.status(401).json({ 
+        success: false,
+        error: 'Error al verificar token',
+        details: error.message 
+      });
     }
 
+    if (!user) {
+      console.log('No se encontró usuario');
+      return res.status(401).json({ 
+        success: false,
+        error: 'Token inválido o expirado' 
+      });
+    }
+
+    console.log('Usuario autenticado:', user.id);
     req.user = user;
     req.supabase = supabase;
     next();
   } catch (error) {
     console.error('Error de autenticación:', error);
-    res.status(500).json({ error: 'Error de autenticación' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Error de autenticación',
+      details: error.message 
+    });
   }
 };
 
@@ -237,6 +270,55 @@ router.get('/me', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error('Error al obtener usuario actual:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint para verificar la validez del token
+router.all('/verify-token', authenticateUser, async (req, res) => {
+  try {
+    // Si el middleware authenticateUser pasa, significa que el token es válido
+    const user = req.user;
+    
+    // Obtener información adicional del usuario desde la base de datos
+    const { data: userData, error: userError } = await req.supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (userError) {
+      console.error('Error al obtener datos del usuario:', userError);
+      // Si hay error al obtener datos adicionales, devolvemos al menos la información básica
+      return res.status(200).json({
+        success: true,
+        message: 'Token válido',
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          metadata: user.user_metadata
+        }
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Token válido',
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        metadata: user.user_metadata,
+        ...userData // Incluir datos adicionales del usuario
+      }
+    });
+  } catch (error) {
+    console.error('Error al verificar token:', error);
+    return res.status(401).json({
+      success: false,
+      message: 'Token inválido o expirado',
+      error: error.message
+    });
   }
 });
 
