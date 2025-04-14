@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { supabase } = require('../lib/supabase');
 
 // URLs por defecto
 const DEFAULT_FRONTEND_URL = 'https://app-rooms-git-main-alejandromgos-projects.vercel.app/';  // URL de producción sin git-main
@@ -134,7 +135,95 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         case 'checkout.session.completed':
             const session = event.data.object;
             console.log('Pago exitoso:', session.id);
-            // Aquí puedes agregar lógica para actualizar tu base de datos
+            
+            try {
+                // Obtener los metadatos de la sesión
+                const { room_id, check_in, check_out, guests } = session.metadata;
+                
+                // Obtener el usuario por el email del cliente
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('email', session.customer_email)
+                    .single();
+
+                if (userError) {
+                    console.error('Error al obtener usuario:', userError);
+                    return res.status(500).json({ error: 'Error al procesar la reservación' });
+                }
+
+                // Verificar que la habitación existe y obtener su precio
+                const { data: room, error: roomError } = await supabase
+                    .from('rooms')
+                    .select('price')
+                    .eq('id', room_id)
+                    .single();
+
+                if (roomError || !room) {
+                    console.error('Error al obtener habitación:', roomError);
+                    return res.status(404).json({ error: 'Habitación no encontrada' });
+                }
+
+                // Crear la reservación en la base de datos
+                const { data: booking, error: bookingError } = await supabase
+                    .from('bookings')
+                    .insert([
+                        {
+                            user_id: userData.id,
+                            room_id: room_id,
+                            start_date: check_in,
+                            end_date: check_out,
+                            guests: parseInt(guests),
+                            price: session.amount_total / 100, // Convertir de centavos a la unidad monetaria
+                            status: 'active',
+                            payment_session_id: session.id,
+                            payment_status: 'paid'
+                        }
+                    ])
+                    .select(`
+                        *,
+                        room:rooms (
+                            id,
+                            title,
+                            room_images (
+                                url,
+                                is_primary
+                            )
+                        )
+                    `)
+                    .single();
+
+                if (bookingError) {
+                    console.error('Error al crear reservación:', bookingError);
+                    return res.status(500).json({ error: 'Error al crear la reservación' });
+                }
+
+                // Actualizar contador de reservas en user_stats
+                const { error: statsError } = await supabase
+                    .from('user_stats')
+                    .update({ bookings: supabase.raw('bookings + 1') })
+                    .eq('user_id', userData.id);
+
+                if (statsError) {
+                    console.error('Error al actualizar estadísticas:', statsError);
+                }
+
+                console.log('Reservación creada exitosamente:', {
+                    id: booking.id,
+                    roomId: booking.room_id,
+                    roomName: booking.room.title,
+                    roomImage: booking.room.room_images.find(img => img.is_primary)?.url || 
+                              (booking.room.room_images[0]?.url || null),
+                    startDate: booking.start_date,
+                    endDate: booking.end_date,
+                    price: booking.price,
+                    status: booking.status,
+                    createdAt: booking.created_at
+                });
+            } catch (error) {
+                console.error('Error al procesar el pago exitoso:', error);
+                return res.status(500).json({ error: 'Error al procesar el pago' });
+            }
             break;
         case 'checkout.session.expired':
             const expiredSession = event.data.object;
